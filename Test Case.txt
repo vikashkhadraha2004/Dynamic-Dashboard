@@ -1,0 +1,141 @@
+1. i want customers where customers.region == West and customers zone == Pune
+
+SELECT *
+FROM customers
+WHERE region = 'West'
+  AND zone = 'Pune';
+
+db.customers.find({
+  region: "West",
+  zone: "Pune"
+})
+
+
+2. i want customers where customers.region == West and customers zone == Pune where invoices.invoice_date between or = 2026-01-20
+
+SELECT DISTINCT c.*
+FROM customers c
+JOIN invoices i ON i.customer_id = c.id
+WHERE c.region = 'West'
+  AND c.zone = 'Pune'
+  AND i.invoice_date = '2026-01-20';
+
+db.customers.aggregate([
+  {
+    $match: {
+      region: "West",
+      zone: "Pune"
+    }
+  },
+  {
+    $lookup: {
+      from: "invoices",
+      localField: "_id",
+      foreignField: "customer_id",
+      as: "invoices"
+    }
+  },
+  { $unwind: "$invoices" },
+  {
+    $match: {
+      "invoices.invoice_date": {
+        $gte: ISODate("2026-01-20"),
+        $lte: ISODate("2026-01-20")
+      }
+    }
+  }
+])
+
+
+3. i want customers where customers.region == West and customers zone == Pune where categories.name == Bakery
+
+SELECT DISTINCT c.*
+FROM customers c
+JOIN invoices i ON i.customer_id = c.id
+JOIN categories cat ON cat.id = i.category_id
+WHERE c.region = 'West'
+  AND c.zone = 'Pune'
+  AND cat.name = 'Bakery';
+
+db.customers.aggregate([
+  { $match: { region: "West", zone: "Pune" } },
+
+  {
+    $lookup: {
+      from: "invoices",
+      localField: "_id",
+      foreignField: "customer_id",
+      as: "invoices"
+    }
+  },
+  { $unwind: "$invoices" },
+
+  {
+    $lookup: {
+      from: "categories",
+      localField: "invoices.category_id",
+      foreignField: "_id",
+      as: "category"
+    }
+  },
+  { $unwind: "$category" },
+
+  { $match: { "category.name": "Bakery" } }
+])
+
+4. i want customers where customers.region == West and customers zone == Pune where products.name == Bread
+
+SELECT DISTINCT c.*
+FROM customers c
+JOIN invoices i ON i.customer_id = c.id
+JOIN products p ON p.id = i.product_id
+WHERE c.region = 'West'
+  AND c.zone = 'Pune'
+  AND p.name = 'Bread';
+
+
+db.customers.aggregate([
+  { $match: { region: "West", zone: "Pune" } },
+
+  {
+    $lookup: {
+      from: "invoices",
+      localField: "_id",
+      foreignField: "customer_id",
+      as: "invoices"
+    }
+  },
+  { $unwind: "$invoices" },
+
+  {
+    $lookup: {
+      from: "products",
+      localField: "invoices.product_id",
+      foreignField: "_id",
+      as: "product"
+    }
+  },
+  { $unwind: "$product" },
+
+  { $match: { "product.name": "Bread" } }
+])
+
+
+5. i want customers.name starts with S
+
+SELECT *
+FROM customers
+WHERE name LIKE 'S%';
+
+db.customers.find({
+  name: { $regex: "^S", $options: "i" }
+})
+
+
+6. all invoices in Laptop purchased
+
+
+7. i want sum of total amount where region == West Zone == Pune products == Laptop 
+or any queries
+
+8. i want sum of total from invoices where customer == Sahil 

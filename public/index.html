@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Dashboard - MongoDB Query Builder</title>
+    <style>
+      :root {
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --accent-color: #4caf50;
+        --warning-color: #ff9800;
+        --danger-color: #f44336;
+        --text-primary: #2c3e50;
+        --text-secondary: #7f8c8d;
+        --background-light: #f8f9fa;
+        --border-color: #dee2e6;
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        color: var(--text-primary);
+        line-height: 1.6;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          var(--secondary-color) 100%
+        );
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .main-content {
+        padding: 30px;
+      }
+
+      .section {
+        margin-bottom: 30px;
+        padding: 25px;
+        background: var(--background-light);
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--primary-color);
+        display: flex;
+        align-items: center;
+      }
+
+      .section-title::before {
+        margin-right: 12px;
+        font-size: 1.3rem;
+      }
+      
+      .section-subtitle {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+        font-style: italic;
+        padding-left: 2px;
+      }
+
+      .filters-section .section-title::before {
+        content: "🔍";
+      }
+      .aggregation-section .section-title::before {
+        content: "📊";
+      }
+      .actions-section .section-title::before {
+        content: "⚡";
+      }
+      .results-section .section-title::before {
+        content: "📈";
+      }
+
+      .row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .form-group {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+      }
+
+      select,
+      input,
+      button {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: var(--transition);
+        background: white;
+      }
+
+      select:focus,
+      input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: none;
+        transition: var(--transition);
+      }
+
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          var(--secondary-color) 100%
+        );
+        color: white;
+        padding: 14px 25px;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn-danger {
+        background: var(--danger-color);
+        color: white;
+        padding: 14px 20px;
+        width: auto;
+      }
+
+      .btn-danger:hover {
+        background: #d32f2f;
+        transform: scale(1.05);
+      }
+
+      .actions-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+      }
+
+      pre {
+        background: #1a1a2e;
+        color: #00ff95;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: "Courier New", monospace;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        overflow-x: auto;
+        margin-top: 30px;
+        max-height: 300px;
+        border: 1px solid #333;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 30px;
+        color: var(--text-secondary);
+      }
+
+      .loading::after {
+        content: "...";
+        animation: dots 1.5s infinite;
+      }
+
+      @keyframes dots {
+        0%,
+        20% {
+          content: ".";
+        }
+        40% {
+          content: "..";
+        }
+        60%,
+        100% {
+          content: "...";
+        }
+      }
+
+      /* Responsive design */
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
+        .header {
+          padding: 20px;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .main-content {
+          padding: 20px;
+        }
+
+        .row {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .form-group {
+          min-width: 100%;
+        }
+
+        .actions-section {
+          flex-direction: column;
+        }
+
+        button {
+          width: 100%;
+        }
+      }
+
+      /* Accessibility improvements */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* Focus indicators for accessibility */
+      button:focus,
+      select:focus,
+      input:focus {
+        outline: 2px solid var(--accent-color);
+        outline-offset: 2px;
+      }
+
+      /* High contrast mode support */
+      @media (prefers-contrast: high) {
+        :root {
+          --border-color: #000;
+          --text-primary: #000;
+          --text-secondary: #333;
+        }
+      }
+
+      /* Notification styles */
+      .notification {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      /* Filter row specific styles */
+      .filter-row, .aggregation-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        align-items: flex-end;
+        transition: var(--transition);
+        border: 1px solid transparent;
+      }
+
+      .filter-row:hover, .aggregation-row:hover {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        border-color: var(--primary-color);
+      }
+
+      /* Improved table container */
+      .results-section #tableContainer {
+        margin-top: 20px;
+      }
+
+      /* Loading spinner */
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 40px;
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+      }
+
+      .loading::before {
+        content: "";
+        width: 20px;
+        height: 20px;
+        border: 3px solid var(--border-color);
+        border-top: 3px solid var(--primary-color);
+        border-radius: 50%;
+        margin-right: 15px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Empty state styling */
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+      }
+
+      .empty-state h3 {
+        margin-bottom: 15px;
+        color: var(--text-primary);
+      }
+
+      .empty-state p {
+        margin-bottom: 20px;
+      }
+
+      /* Table styles */
+      #resultsTable, #detailedResultsTable, #aggregationResultsTable {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: white;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      #resultsTable th, #detailedResultsTable th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        padding: 14px 12px;
+        text-align: left;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      #aggregationResultsTable th {
+        background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+        color: white;
+        font-weight: 600;
+        padding: 14px 12px;
+        text-align: left;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      #resultsTable td, #detailedResultsTable td {
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: top;
+        transition: background-color 0.2s ease;
+      }
+
+      #resultsTable tr:nth-child(even), #detailedResultsTable tr:nth-child(even) {
+        background-color: #f8f9fa;
+      }
+
+      #resultsTable tr:hover, #detailedResultsTable tr:hover {
+        background-color: #e3f2fd;
+        transform: scale(1.005);
+        transition: all 0.2s ease;
+      }
+
+      #resultsTable tr:nth-child(even):hover, #detailedResultsTable tr:nth-child(even):hover {
+        background-color: #e1f5fe;
+      }
+
+      #aggregationResultsTable td {
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: top;
+        transition: background-color 0.2s ease;
+      }
+
+      #aggregationResultsTable tr:nth-child(even) {
+        background-color: #f1f8e9;
+      }
+
+      #aggregationResultsTable tr:hover {
+        background-color: #dcedc8;
+        transform: scale(1.005);
+        transition: all 0.2s ease;
+      }
+
+      #aggregationResultsTable tr:nth-child(even):hover {
+        background-color: #c8e6c9;
+      }
+
+      .no-results {
+        text-align: center;
+        padding: 40px 20px;
+        color: #666;
+        font-style: italic;
+        font-size: 16px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+
+      .results-section {
+        margin-top: 30px;
+      }
+
+      .results-header {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+      }
+
+      .results-header::before {
+        content: "📊";
+        margin-right: 10px;
+      }
+
+      .results-subtitle {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 25px 0 15px 0;
+        color: #2c3e50;
+        padding: 10px 15px;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-left: 4px solid #2196F3;
+        border-radius: 0 8px 8px 0;
+      }
+
+      #resultsContainer {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      #detailedResults, #aggregationResults {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      /* Scrollable container for wide tables */
+      .table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 10px;
+      }
+
+      /* Numeric column styling */
+      .numeric-cell {
+        text-align: right;
+        font-family: monospace;
+      }
+
+      /* Boolean column styling */
+      .boolean-cell {
+        text-align: center;
+        font-weight: bold;
+      }
+
+      /* Object cell styling */
+      .object-cell {
+        font-family: monospace;
+        font-size: 12px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        padding: 5px;
+      }
+
+      /* Saved configurations styles */
+      .saved-configs-section {
+        margin-top: 20px;
+        padding: 25px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .configs-table-wrapper {
+        overflow-x: auto;
+        margin-top: 15px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+      }
+
+      .configs-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 600px;
+      }
+
+      .configs-table th,
+      .configs-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .configs-table th {
+        background: var(--background-light);
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .configs-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .configs-table tr:hover {
+        background-color: #f8fafc;
+      }
+
+      .config-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: var(--background-light);
+        color: var(--text-secondary);
+      }
+
+      .btn-small {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        width: auto;
+      }
+
+      .btn-load {
+        background: var(--accent-color);
+        color: white;
+      }
+
+      .btn-load:hover {
+        background: #43a047;
+      }
+
+      /* Enhanced mobile responsiveness */
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
+        .header h1 {
+          font-size: 1.8rem;
+        }
+
+        .section {
+          padding: 15px;
+        }
+
+        .filter-row, .aggregation-row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 10px;
+          padding: 15px;
+        }
+
+        .form-group {
+          width: 100%;
+        }
+
+        .actions-section {
+          flex-direction: column;
+        }
+
+        .btn-primary, .btn-danger {
+          width: 100%;
+        }
+
+        .configs-table th:nth-child(2),
+        .configs-table td:nth-child(2) {
+          display: none; /* Hide description on small screens */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1>Dynamic Dashboard</h1>
+        <p>
+          Build powerful MongoDB queries with intuitive filtering and
+          cross-collection joins
+        </p>
+      </header>
+
+      <main class="main-content">
+        <section class="section filters-section">
+          <h2 class="section-title">Data Filters</h2>
+          <p class="section-subtitle">Specify conditions to find your data (e.g., region = West)</p>
+          <div id="filters"></div>
+          <button class="btn-primary" onclick="addRow()">➕ Add Filter</button>
+        </section>
+              
+        <section class="section aggregation-section">
+          <h2 class="section-title">Calculate & Apply Conditions</h2>
+          <p class="section-subtitle">Calculate totals and set conditions (e.g., total sales > 1000)</p>
+          <div id="aggregations"></div>
+          <button class="btn-primary" onclick="addAggregationRow()">➕ Add Calculation & Condition</button>
+        </section>
+
+        <section class="section actions-section">
+          <h2 class="section-title">Actions</h2>
+          <button class="btn-primary" onclick="run()">▶ Execute Query</button>
+          <button class="btn-primary" onclick="saveQueryConfig()">💾 Save Config</button>
+          <button class="btn-danger" onclick="clearAll()">🗑️ Clear All</button>
+        </section>
+
+        <section class="section results-section">
+          <h2 class="section-title">Results</h2>
+          <div id="resultsContainer">
+            <div id="detailedResults">
+              <h3 class="results-subtitle">📋 Detailed Records</h3>
+              <div id="detailedTableContainer"></div>
+            </div>
+            <div id="aggregationResults">
+              <h3 class="results-subtitle">📊 Summary Data</h3>
+              <div id="aggregationTableContainer"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+      
+      <section id="savedConfigsSection" class="section saved-configs-section">
+        <h2 class="section-title">💾 Saved Queries</h2>
+        <div id="savedConfigsContent">
+          <p class="no-saved">Loading saved queries...</p>
+        </div>
+      </section>
+    </div>
+
+    <pre id="out"></pre>
+
+    <script>
+      const DATABASE = "salesDB";
+      let allFields = [];
+      let filters = [];
+
+      async function loadFields() {
+        try {
+          const res = await fetch(`http://localhost:3000/all-fields/${DATABASE}`);
+          const json = await res.json();
+          if (json.error) {
+            console.error('Error loading fields:', json.error);
+            showNotification(`Error loading fields: ${json.error}`, "error");
+            allFields = [];
+          } else {
+            allFields = json.fields || [];
+          }
+          addRow();
+        } catch (error) {
+          console.error('Network error loading fields:', error);
+          showNotification('Network error: Could not load fields', "error");
+          allFields = [];
+          addRow();
+        }
+      }
+
+      function addRow() {
+        const filtersContainer = document.getElementById("filters");
+
+        const row = document.createElement("div");
+        row.className = "filter-row";
+
+        // Create form groups for better structure
+        const fieldGroup = document.createElement("div");
+        fieldGroup.className = "form-group";
+        const fieldLabel = document.createElement("label");
+        fieldLabel.textContent = "Collection.Field";
+        const fieldSel = document.createElement("select");
+        fieldSel.innerHTML = `<option value="">Select field</option>`;
+        if (allFields && Array.isArray(allFields)) {
+          allFields.forEach((f) => {
+            const opt = document.createElement("option");
+            opt.value = `${f.collection}.${f.value}`;
+            opt.textContent = `${f.collection}.${f.value}`;
+            opt.dataset.collection = f.collection;
+            opt.dataset.field = f.value;
+            fieldSel.appendChild(opt);
+          });
+        }
+        fieldGroup.append(fieldLabel, fieldSel);
+
+        const opGroup = document.createElement("div");
+        opGroup.className = "form-group";
+        const opLabel = document.createElement("label");
+        opLabel.textContent = "Operator";
+        const opSel = document.createElement("select");
+        opSel.innerHTML = `
+    <option value="eq">Equals (=)</option>
+    <option value="ne">Not Equals (!=)</option>
+    <option value="gt">Greater Than (&gt;)</option>
+    <option value="gte">Greater Than or Equal (&gt;=)</option>
+    <option value="lt">Less Than (&lt;)</option>
+    <option value="lte">Less Than or Equal (&lt;=)</option>
+    <option value="contains">Contains</option>
+    <option value="startsWith">Starts With</option>
+    <option value="between">Between</option>
+    <option value="in">In List</option>
+    <option value="sum">SUM (Calculate Total)</option>
+    <option value="count">COUNT (Count Records)</option>
+    <option value="avg">AVG (Average Value)</option>
+    <option value="min">MIN (Minimum Value)</option>
+    <option value="max">MAX (Maximum Value)</option>
+  `;
+        opGroup.append(opLabel, opSel);
+
+        const valGroup = document.createElement("div");
+        valGroup.className = "form-group";
+        const valLabel = document.createElement("label");
+        valLabel.textContent = "Value";
+        const valInp = document.createElement("input");
+        valInp.placeholder = "Enter value (use comma for lists)";
+        valGroup.append(valLabel, valInp);
+
+        const btn = document.createElement("button");
+        btn.className = "btn-danger";
+        btn.textContent = "Remove";
+        btn.setAttribute("aria-label", "Remove filter");
+        btn.onclick = () => row.remove();
+
+        row.append(fieldGroup, opGroup, valGroup, btn);
+        filtersContainer.appendChild(row);
+
+        // Add animation
+        row.style.opacity = "0";
+        row.style.transform = "translateY(-10px)";
+        setTimeout(() => {
+          row.style.transition = "all 0.3s ease";
+          row.style.opacity = "1";
+          row.style.transform = "translateY(0)";
+        }, 10);
+      }
+
+      function collectFilters() {
+        const rows = document.querySelectorAll("#filters .filter-row");
+        const regularFilters = [];
+
+        rows.forEach((r, index) => {
+          const fieldSel = r.children[0].querySelector("select");
+          const opSel = r.children[1].querySelector("select");
+          const valInp = r.children[2].querySelector("input");
+
+          if (!fieldSel || !opSel || !valInp) {
+            console.warn(`Skipping filter row ${index}: Missing elements`);
+            return;
+          }
+
+          const op = opSel.value;
+          let val = valInp.value;
+
+          // Skip empty filters
+          if (!fieldSel.value || !op) {
+            console.log(
+              `Skipping incomplete filter: field=${fieldSel.value}, op=${op}`
+            );
+            return;
+          }
+
+          const opt = fieldSel.selectedOptions[0];
+          const collection = opt.dataset.collection;
+          const field = opt.dataset.field;
+
+          // Skip aggregation operators (they are handled separately now)
+          const aggregationOperators = ["sum", "count", "avg", "min", "max"];
+          if (aggregationOperators.includes(op)) {
+            console.log(
+              `Skipping aggregation operator in filter section: ${op}. Use the Aggregation section instead.`
+            );
+            return;
+          }
+
+          // Handle regular filter
+          if (!val) {
+            console.log(
+              `Skipping filter without value: ${collection}.${field} ${op}`
+            );
+            return;
+          }
+
+          if (op === "in") {
+            val = val
+              .split(",")
+              .map((v) => v.trim())
+              .filter((v) => v);
+          }
+
+          if (op === "between") {
+            const parts = val
+              .split(",")
+              .map((v) => v.trim())
+              .filter((v) => v);
+            if (parts.length >= 2) {
+              val = { from: parts[0], to: parts[1] };
+            } else {
+              console.warn(
+                "Between operator requires two values separated by comma"
+              );
+              return;
+            }
+          }
+
+          regularFilters.push({
+            collection,
+            field,
+            operator: op,
+            value: val,
+          });
+          console.log(
+            `Added filter ${index}: ${collection}.${field} ${op} ${JSON.stringify(
+              val
+            )}`
+          );
+        });
+
+        console.log(`Regular filters: ${regularFilters.length}`);
+        return regularFilters;
+            }
+
+      function addAggregationRow() {
+        const aggregationsContainer = document.getElementById("aggregations");
+
+        const row = document.createElement("div");
+        row.className = "aggregation-row";
+
+        // Create form groups for better structure
+        const fieldGroup = document.createElement("div");
+        fieldGroup.className = "form-group";
+        const fieldLabel = document.createElement("label");
+        fieldLabel.textContent = "Field to Calculate";
+        const fieldSel = document.createElement("select");
+        fieldSel.innerHTML = `<option value="">Select field</option>`;
+        if (allFields && Array.isArray(allFields)) {
+          allFields.forEach((f) => {
+            const opt = document.createElement("option");
+            opt.value = `${f.collection}.${f.value}`;
+            opt.textContent = `${f.collection}.${f.value}`;
+            opt.dataset.collection = f.collection;
+            opt.dataset.field = f.value;
+            fieldSel.appendChild(opt);
+          });
+        }
+        fieldGroup.append(fieldLabel, fieldSel);
+
+        const opGroup = document.createElement("div");
+        opGroup.className = "form-group";
+        const opLabel = document.createElement("label");
+        opLabel.textContent = "Calculation Type";
+        const opSel = document.createElement("select");
+        opSel.innerHTML = `
+    <option value="sum">SUM (Total)</option>
+    <option value="count">COUNT (Number of Items)</option>
+    <option value="avg">AVERAGE (Mean Value)</option>
+    <option value="min">MINIMUM (Smallest Value)</option>
+    <option value="max">MAXIMUM (Largest Value)</option>
+  `;
+        opGroup.append(opLabel, opSel);
+
+        // Add Group By field (needed when applying conditions to totals)
+        const groupByGroup = document.createElement("div");
+        groupByGroup.className = "form-group";
+        const groupByLabel = document.createElement("label");
+        groupByLabel.textContent = "Group By (for totals)";
+        const groupBySel = document.createElement("select");
+        groupBySel.innerHTML = `<option value="">Same as calculation field (default)</option>`;
+        if (allFields && Array.isArray(allFields)) {
+          allFields.forEach((f) => {
+            const opt = document.createElement("option");
+            opt.value = `${f.collection}.${f.value}`;
+            opt.textContent = `${f.collection}.${f.value}`;
+            opt.dataset.collection = f.collection;
+            opt.dataset.field = f.value;
+            groupBySel.appendChild(opt);
+          });
+        }
+        groupByGroup.append(groupByLabel, groupBySel);
+
+        // Add filter fields for applying conditions to totals
+        const havingOpGroup = document.createElement("div");
+        havingOpGroup.className = "form-group";
+        const havingOpLabel = document.createElement("label");
+        havingOpLabel.textContent = "Apply Condition";
+        const havingOpSel = document.createElement("select");
+        havingOpSel.innerHTML = `
+          <option value="">No condition (optional)</option>
+          <option value="gt">Greater than (>)</option>
+          <option value="gte">Greater than or equal (>=)</option>
+          <option value="lt">Less than (<)</option>
+          <option value="lte">Less than or equal (<=)</option>
+          <option value="eq">Equal to (=)</option>
+          <option value="ne">Not equal to (!=)</option>
+        `;
+        havingOpGroup.append(havingOpLabel, havingOpSel);
+
+        const havingValueGroup = document.createElement("div");
+        havingValueGroup.className = "form-group";
+        const havingValueLabel = document.createElement("label");
+        havingValueLabel.textContent = "Condition Value";
+        const havingValueInput = document.createElement("input");
+        havingValueInput.type = "text";
+        havingValueInput.placeholder = "e.g. 1000 (leave empty if no condition)";
+        havingValueGroup.append(havingValueLabel, havingValueInput);
+
+        const btn = document.createElement("button");
+        btn.className = "btn-danger";
+        btn.textContent = "Remove";
+        btn.setAttribute("aria-label", "Remove calculation");
+        btn.onclick = () => row.remove();
+
+        row.append(fieldGroup, opGroup, groupByGroup, havingOpGroup, havingValueGroup, btn);
+        aggregationsContainer.appendChild(row);
+
+        // Add animation
+        row.style.opacity = "0";
+        row.style.transform = "translateY(-10px)";
+        setTimeout(() => {
+          row.style.transition = "all 0.3s ease";
+          row.style.opacity = "1";
+          row.style.transform = "translateY(0)";
+        }, 10);
+      }
+
+      function collectAggregations() {
+        const rows = document.querySelectorAll(".aggregation-row");
+        const aggregations = [];
+        const havingFilters = [];
+        const groupByFields = [];
+
+        rows.forEach((r, index) => {
+          const fieldSel = r.children[0].querySelector("select");
+          const opSel = r.children[1].querySelector("select");
+          const groupBySel = r.children[2].querySelector("select"); // Group by field
+          const havingOpSel = r.children[3].querySelector("select"); // HAVING operator
+          const havingValueInput = r.children[4].querySelector("input"); // HAVING value
+
+          if (!fieldSel || !opSel) {
+            console.warn(`Skipping aggregation row ${index}: Missing elements`);
+            return;
+          }
+
+          const fieldSelVal = fieldSel.value;
+          const op = opSel.value;
+          const groupByValue = groupBySel ? groupBySel.value : '';
+          const havingOp = havingOpSel ? havingOpSel.value : '';
+          const havingValue = havingValueInput ? havingValueInput.value : '';
+
+          // Skip empty aggregations
+          if (!fieldSelVal || !op) {
+            console.log(
+              `Skipping incomplete aggregation: field=${fieldSelVal}, op=${op}`
+            );
+            return;
+          }
+
+          const opt = fieldSel.selectedOptions[0];
+          const collection = opt.dataset.collection;
+          const field = opt.dataset.field;
+
+          // Add aggregation
+          const aggregation = {
+            operator: op,
+            collection: collection,
+            field: field,
+            alias: `${op}_${field.replace(/\./g, '_')}`, // Create unique alias
+          };
+
+          aggregations.push(aggregation);
+          console.log(
+            `Added aggregation: ${op} on ${collection}.${field} as ${aggregation.alias}`
+          );
+
+          // Add group by field if specified
+          if (groupByValue) {
+            const groupOpt = groupBySel.selectedOptions[0];
+            const groupCollection = groupOpt.dataset.collection;
+            const groupField = groupOpt.dataset.field;
+            
+            groupByFields.push({
+              collection: groupCollection,
+              field: groupField
+            });
+          } else {
+            // Default: group by the same field as the calculation
+            groupByFields.push({
+              collection: collection,
+              field: field
+            });
+          }
+
+          // Add HAVING filter if specified
+          if (havingOp && havingValue) {
+            const havingFilter = {
+              field: aggregation.alias, // Reference the aggregation result
+              operator: havingOp,
+              value: havingValue
+            };
+            havingFilters.push(havingFilter);
+            console.log(
+              `Added HAVING filter: ${havingFilter.field} ${havingOp} ${havingValue}`
+            );
+          }
+        });
+
+        console.log(`Aggregations collected: ${aggregations.length}`);
+        console.log(`HAVING filters collected: ${havingFilters.length}`);
+        console.log(`Group by fields collected: ${groupByFields.length}`);
+        
+        return {
+          aggregations: aggregations,
+          having: havingFilters,
+          groupBy: groupByFields
+        };
+      }
+
+
+
+      async function run() {
+        const runButton = event.target.closest('button') || document.querySelector('.actions-section .btn-primary');
+        const originalText = runButton.textContent;
+
+        // Show loading state
+        runButton.textContent = "⏳ Executing...";
+        runButton.disabled = true;
+
+        try {
+          const regularFilters = collectFilters();
+          const aggResult = collectAggregations(); // This now returns an object
+          const aggregations = aggResult.aggregations;
+          const havingFilters = aggResult.having; // Get having filters from the same function
+          const groupByFields = aggResult.groupBy; // Get group by fields
+
+          // Debug: Log the collected filters and aggregations
+          console.log("Regular filters:", regularFilters);
+          console.log("Aggregation operations:", aggregations);
+          console.log("Having filters:", havingFilters);
+
+          // Show loading indicator
+          const detailedContainer = document.getElementById("detailedTableContainer");
+          const aggregationContainer = document.getElementById("aggregationTableContainer");
+          detailedContainer.innerHTML = '<div class="loading">Executing query</div>';
+          aggregationContainer.innerHTML = '';
+
+          // Prepare request body
+          const requestBody = {
+            database: DATABASE,
+            filters: regularFilters,
+          };
+
+          // Add aggregation operations if any
+          if (aggregations.length > 0) {
+            requestBody.aggregation = aggregations;
+          }
+
+          // Add having filters if any
+          if (havingFilters.length > 0) {
+            requestBody.having = havingFilters;
+          }
+
+          // Add group by fields if any
+          if (groupByFields && groupByFields.length > 0) {
+            requestBody.groupBy = groupByFields;
+          }
+
+          const res = await fetch("http://localhost:3000/query", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+
+          const json = await res.json();
+          document.getElementById("out").textContent = JSON.stringify(
+            json,
+            null,
+            2
+          );
+
+          // Display results in separate tables
+          displayResultsInTables(json);
+
+          // Show success feedback
+          let successMessage = "Query executed successfully!";
+          if (json.type === "both") {
+            successMessage = `Query completed! Found ${json.detailed_count} detailed records and ${json.aggregation_count} aggregated results.`;
+          } else if (json.type === "regular") {
+            successMessage = `Query executed successfully! Found ${json.count} results.`;
+          } else if (json.detailed_count !== undefined && json.aggregation_count !== undefined) {
+            successMessage = `Query completed! Found ${json.detailed_count} detailed records and ${json.aggregation_count} aggregated results.`;
+          }
+          showNotification(successMessage, "success");
+        } catch (error) {
+          console.error("Query execution failed:", error);
+          showNotification(
+            "Query execution failed. Please check your filters.",
+            "error"
+          );
+          document.getElementById("detailedTableContainer").innerHTML =
+            '<div class="no-results">Error executing query. Please try again.</div>';
+          document.getElementById("aggregationTableContainer").innerHTML = '';
+        } finally {
+          // Restore button state
+          runButton.textContent = originalText;
+          runButton.disabled = false;
+        }
+      }
+
+      function clearAll() {
+        document.getElementById("filters").innerHTML = "";
+        document.getElementById("aggregations").innerHTML = "";
+        document.getElementById("having").innerHTML = "";
+        document.getElementById("detailedTableContainer").innerHTML = "";
+        document.getElementById("aggregationTableContainer").innerHTML = "";
+        document.getElementById("out").textContent = "";
+        showNotification("All filters cleared", "info");
+        addRow(); // Add one empty row
+      }
+
+      function saveQueryConfig() {
+        const name = prompt("Enter a name for this query configuration:");
+        if (!name) return;
+        
+        const description = prompt("Enter a description (optional):") || "";
+        const filters = collectFilters();
+        const aggResult = collectAggregations(); // This returns an object with aggregations and having
+        const aggregations = aggResult.aggregations;
+        const having = aggResult.having;
+        const groupBy = aggResult.groupBy;
+        
+        if (filters.length === 0 && aggregations.length === 0 && having.length === 0) {
+          showNotification("No configuration to save!", "warning");
+          return;
+        }
+        
+        // Send to backend
+        fetch("http://localhost:3000/save-query-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            description,
+            filters,
+            aggregation: aggregations,
+            having: having,
+            groupBy: groupBy
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showNotification(`Configuration "${name}" saved to backend!`, "success");
+            loadSavedConfigsList(); // Refresh the list
+          } else {
+            showNotification("Failed to save configuration", "error");
+          }
+        })
+        .catch(error => {
+          console.error("Save config error:", error);
+          showNotification("Error saving configuration", "error");
+        });
+      }
+
+      function loadSavedConfig(configName) {
+        // First get all configs to find the one with the given name
+        fetch("http://localhost:3000/query-configs")
+        .then(response => response.json())
+        .then(data => {
+          const config = data.configs.find(c => c.name === configName);
+          
+          if (config) {
+            // Clear current UI
+            document.getElementById("filters").innerHTML = "";
+            document.getElementById("aggregations").innerHTML = "";
+            document.getElementById("having").innerHTML = "";
+            
+            // Recreate filters
+            config.filters.forEach(filter => {
+              addRow();
+              const rows = document.querySelectorAll(".filter-row");
+              if (rows.length > 0) {
+                const lastRow = rows[rows.length - 1];
+                const selects = lastRow.querySelectorAll("select");
+                const fieldSel = selects[0];
+                const opSel = selects[1];
+                const valInp = lastRow.querySelector("input");
+                
+                if (fieldSel) fieldSel.value = `${filter.collection}.${filter.field}`;
+                if (opSel) opSel.value = filter.operator;
+                if (valInp) {
+                  valInp.value = typeof filter.value === 'object' ? 
+                    (Array.isArray(filter.value) ? filter.value.join(',') : JSON.stringify(filter.value)) : 
+                    filter.value;
+                }
+              }
+            });
+            
+            // Recreate aggregations with having filters
+            if (config.aggregation && Array.isArray(config.aggregation)) {
+              config.aggregation.forEach((agg, index) => {
+                addAggregationRow();
+                const aggRows = document.querySelectorAll(".aggregation-row");
+                if (aggRows.length > 0) {
+                  const lastRow = aggRows[aggRows.length - 1];
+                  const selects = lastRow.querySelectorAll("select");
+                  const inputs = lastRow.querySelectorAll("input");
+                  const fieldSel = selects[0];
+                  const opSel = selects[1];
+                  const groupBySel = selects[2]; // Group by field
+                  const havingOpSel = selects[3]; // HAVING operator
+                  const havingValInp = inputs[0]; // HAVING value input
+                  
+                  if (fieldSel) fieldSel.value = `${agg.collection}.${agg.field}`;
+                  if (opSel) opSel.value = agg.operator;
+                  
+                  // Set group by field if available
+                  if (config.groupBy && Array.isArray(config.groupBy) && config.groupBy[index]) {
+                    const groupByField = config.groupBy[index];
+                    if (groupBySel) {
+                      groupBySel.value = `${groupByField.collection}.${groupByField.field}`;
+                    }
+                  }
+                  
+                  // Look for corresponding having filter for this aggregation
+                  if (config.having && Array.isArray(config.having)) {
+                    const correspondingHaving = config.having.find(h => h.field === agg.alias);
+                    if (correspondingHaving && havingOpSel && havingValInp) {
+                      havingOpSel.value = correspondingHaving.operator;
+                      havingValInp.value = correspondingHaving.value;
+                    }
+                  }
+                }
+              });
+            }
+            
+            showNotification(`Loaded configuration: ${configName}`, "info");
+          } else {
+            showNotification("Configuration not found", "error");
+          }
+        })
+        .catch(error => {
+          console.error("Load config error:", error);
+          showNotification("Error loading configuration", "error");
+        });
+      }
+
+      function loadSavedConfigsList() {
+        fetch("http://localhost:3000/query-configs")
+        .then(response => response.json())
+        .then(data => {
+          const configs = data.configs || [];
+          const content = document.getElementById("savedConfigsContent");
+          
+          if (configs.length === 0) {
+            content.innerHTML = '<p class="no-saved">No saved configurations yet</p>';
+            return;
+          }
+          
+          // Show first 3 configs directly, rest in dropdown
+          const visibleConfigs = configs.slice(0, 3);
+          const hiddenConfigs = configs.slice(3);
+          
+          let html = '';
+          
+          if (visibleConfigs.length > 0) {
+            html += `
+              <div class="configs-table-wrapper">
+                <table class="configs-table">
+                  <thead>
+                    <tr>
+                      <th>Config Name</th>
+                      <th>Description</th>
+                      <th>Components</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+            `;
+
+            html += visibleConfigs.map(config => `
+              <tr>
+                <td><strong>${config.name}</strong></td>
+                <td>${config.description || '<span style="color:#999 italic">No description</span>'}</td>
+                <td>
+                  <span class="badge">🔍 ${config.filters.length} Filters</span>
+                  <span class="badge">📊 ${config.aggregation?.length || 0} Calcs</span>
+                </td>
+                <td class="config-actions">
+                  <button class="btn-small btn-load" onclick="loadSavedConfig('${config.name.replace(/'/g, "\\'")}')">Load</button>
+                  <button class="btn-small btn-danger" onclick="deleteSavedConfig('${config._id}')">Delete</button>
+                </td>
+              </tr>
+            `).join('');
+            
+            html += `
+                  </tbody>
+                </table>
+              </div>
+            `;
+          }
+          
+          // Add dropdown for remaining configs if any
+          if (hiddenConfigs.length > 0) {
+            html += `
+              <div class="see-more-container" style="margin-top: 20px;">
+                <details>
+                  <summary style="
+                    cursor: pointer; 
+                    padding: 12px; 
+                    background: var(--background-light); 
+                    border: 1px solid var(--border-color); 
+                    border-radius: 8px; 
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  ">
+                    <span>📁 More Saved Queries (${hiddenConfigs.length} hidden)</span>
+                    <span style="font-size: 1.2em;">▼</span>
+                  </summary>
+                  <div class="configs-table-wrapper" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <table class="configs-table">
+                      <thead>
+                        <tr>
+                          <th>Config Name</th>
+                          <th>Description</th>
+                          <th>Components</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+            `;
+
+            html += hiddenConfigs.map(config => `
+              <tr>
+                <td><strong>${config.name}</strong></td>
+                <td>${config.description || '<span style="color:#999 italic">No description</span>'}</td>
+                <td>
+                  <span class="badge">🔍 ${config.filters.length} Filters</span>
+                  <span class="badge">📊 ${config.aggregation?.length || 0} Calcs</span>
+                </td>
+                <td class="config-actions">
+                  <button class="btn-small btn-load" onclick="loadSavedConfig('${config.name.replace(/'/g, "\\'")}')">Load</button>
+                  <button class="btn-small btn-danger" onclick="deleteSavedConfig('${config._id}')">Delete</button>
+                </td>
+              </tr>
+            `).join('');
+            
+            html += `
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </div>
+            `;
+          }
+          
+          content.innerHTML = html;
+        })
+        .catch(error => {
+          console.error("Load configs list error:", error);
+          document.getElementById("savedConfigsContent").innerHTML = 
+            '<p class="no-saved">Error loading saved configurations</p>';
+        });
+      }
+
+      function deleteSavedConfig(configId) {
+        if (!confirm("Delete this configuration?")) return;
+        
+        fetch(`http://localhost:3000/query-config/${configId}`, {
+          method: "DELETE"
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showNotification("Configuration deleted", "info");
+            loadSavedConfigsList(); // Refresh the list
+          } else {
+            showNotification("Failed to delete configuration", "error");
+          }
+        })
+        .catch(error => {
+          console.error("Delete config error:", error);
+          showNotification("Error deleting configuration", "error");
+        });
+      }
+
+      function showNotification(message, type = "info") {
+        // Create notification element
+        const notification = document.createElement("div");
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  `;
+
+        // Set background color based on type
+        const colors = {
+          success: "#4CAF50",
+          error: "#f44336",
+          info: "#2196F3",
+          warning: "#ff9800",
+        };
+        notification.style.backgroundColor = colors[type] || colors.info;
+
+        document.body.appendChild(notification);
+
+        // Animate in
+        setTimeout(() => {
+          notification.style.transform = "translateX(0)";
+        }, 100);
+
+        // Auto remove after delay
+        setTimeout(() => {
+          notification.style.transform = "translateX(100%)";
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.parentNode.removeChild(notification);
+            }
+          }, 300);
+        }, 3000);
+      }
+
+      function displayResultsInTables(response) {
+        const detailedContainer = document.getElementById("detailedTableContainer");
+        const aggregationContainer = document.getElementById("aggregationTableContainer");
+
+        // Clear previous tables
+        detailedContainer.innerHTML = "";
+        aggregationContainer.innerHTML = "";
+
+        // Handle different response types
+        if (response.type === 'both') {
+          // Display both detailed records and aggregation results
+          displayDetailedTable(detailedContainer, response.detailed_data);
+          displayAggregationTable(aggregationContainer, response.aggregation_data);
+        } else if (response.type === 'regular') {
+          // Display only detailed records (backward compatibility)
+          displayDetailedTable(detailedContainer, response.data);
+          aggregationContainer.innerHTML = '<div class="empty-state"><h3>No Aggregation Data</h3><p>Add aggregation calculations to see summary statistics</p></div>';
+        } else if (response.aggregation_data !== undefined) {
+          // Handle unified response where we have aggregation results
+          if (response.aggregation_data && response.aggregation_data.length > 0) {
+            displayAggregationTable(aggregationContainer, response.aggregation_data);
+          } else {
+            aggregationContainer.innerHTML = '<div class="empty-state"><h3>No Aggregation Results</h3><p>No records matched your criteria with the applied calculations</p></div>';
+          }
+          
+          if (response.detailed_data && response.detailed_data.length > 0) {
+            displayDetailedTable(detailedContainer, response.detailed_data);
+          } else {
+            detailedContainer.innerHTML = '<div class="empty-state"><h3>No Detailed Records</h3><p>No detailed records matched your criteria</p></div>';
+          }
+        } else {
+          // Fallback for unknown response types
+          detailedContainer.innerHTML = '<div class="no-results">No results found</div>';
+          aggregationContainer.innerHTML = '';
+        }
+      }
+
+      function displayDetailedTable(container, data) {
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div class="no-results">No detailed records found</div>';
+          return;
+        }
+
+        // Create wrapper for scrollable table
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-wrapper";
+
+        // Create table
+        const table = document.createElement("table");
+        table.id = "detailedResultsTable";
+
+        // Create header
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+
+        // Get all unique keys from all objects, but filter out unwanted fields
+        const allKeys = new Set();
+        data.forEach((item) => {
+          Object.keys(item).forEach((key) => {
+            // Skip ID fields completely
+            if (key.endsWith("_id") || ["id", "_id"].includes(key)) return;
+
+            // Skip full collection objects (we show resolved names instead)
+            if (["customers", "products", "categories"].includes(key)) return;
+
+            // Add all other fields (including resolved names like customers_name, products_name)
+            allKeys.add(key);
+          });
+        });
+
+        // Add headers
+        Array.from(allKeys).forEach((key) => {
+          const th = document.createElement("th");
+
+          // Format header text with better readability
+          let headerText = key;
+
+          // Handle resolved name fields
+          if (key === "customers_name") {
+            headerText = "Customer Name";
+          } else if (key === "products_name") {
+            headerText = "Product Name";
+          } else if (key === "categories_name") {
+            headerText = "Category Name";
+          } else if (key === "customer_region") {
+            headerText = "Region";
+          } else if (key === "customer_zone") {
+            headerText = "Zone";
+          } else if (key.includes("_name")) {
+            // Generic name field formatting
+            headerText =
+              key.replace("_name", "").charAt(0).toUpperCase() +
+              key.replace("_name", "").slice(1).replace(/_/g, " ") +
+              " Name";
+          } else if (key.startsWith("customer_") && key !== "customer_id") {
+            // Other customer fields
+            headerText =
+              key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
+          } else {
+            // Default formatting
+            headerText =
+              key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
+          }
+
+          th.textContent = headerText;
+          headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Create body
+        const tbody = document.createElement("tbody");
+
+        data.forEach((item) => {
+          const row = document.createElement("tr");
+
+          allKeys.forEach((key) => {
+            const td = document.createElement("td");
+            let value = item[key];
+
+            // Format values for better display
+            if (value === null || value === undefined) {
+              td.textContent = "N/A";
+              td.style.color = "#999";
+              td.style.fontStyle = "italic";
+            } else if (typeof value === "object") {
+              td.textContent = JSON.stringify(value);
+              td.classList.add("object-cell");
+            } else if (typeof value === "boolean") {
+              td.textContent = value.toString();
+              td.classList.add("boolean-cell");
+              if (value) {
+                td.style.color = "#4CAF50";
+              } else {
+                td.style.color = "#f44336";
+              }
+            } else if (typeof value === "number") {
+              // Format numbers with commas and decimals
+              if (Number.isInteger(value)) {
+                td.textContent = value.toLocaleString();
+              } else {
+                td.textContent = parseFloat(value).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+              }
+              td.classList.add("numeric-cell");
+            } else if (key.includes("date") || key.includes("_at")) {
+              // Format dates
+              const date = new Date(value);
+              if (date.toString() !== "Invalid Date") {
+                td.textContent =
+                  date.toLocaleDateString() + " " + date.toLocaleTimeString();
+              } else {
+                td.textContent = value;
+              }
+            } else {
+              td.textContent = value;
+              // If it looks like a number, format as numeric
+              if (!isNaN(parseFloat(value)) && !isNaN(value - 0)) {
+                td.classList.add("numeric-cell");
+                td.textContent = parseFloat(value).toLocaleString(undefined, {
+                  minimumFractionDigits: isNaN(parseInt(value)) ? 2 : 0,
+                  maximumFractionDigits: isNaN(parseInt(value)) ? 2 : 0,
+                });
+              }
+            }
+
+            row.appendChild(td);
+          });
+
+          tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+      }
+
+      function displayAggregationTable(container, data) {
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div class="no-results">No aggregation results found</div>';
+          return;
+        }
+
+        // Create wrapper for scrollable table
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-wrapper";
+
+        // Create table
+        const table = document.createElement("table");
+        table.id = "aggregationResultsTable";
+
+        // Create header
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+
+        // Get all unique keys from aggregation results
+        const allKeys = new Set();
+        data.forEach((item) => {
+          Object.keys(item).forEach((key) => {
+            // Skip _id field from aggregation results
+            if (key === "_id") return;
+            allKeys.add(key);
+          });
+        });
+
+        // Add headers
+        Array.from(allKeys).forEach((key) => {
+          const th = document.createElement("th");
+          
+          // Format header text for aggregation fields
+          let headerText = key;
+          if (key === "count") {
+            headerText = "Record Count";
+          } else if (key.includes("sum_")) {
+            headerText = key.replace("sum_", "Total ").replace(/_/g, " ");
+          } else if (key.includes("avg_")) {
+            headerText = key.replace("avg_", "Average ").replace(/_/g, " ");
+          } else if (key.includes("min_")) {
+            headerText = key.replace("min_", "Minimum ").replace(/_/g, " ");
+          } else if (key.includes("max_")) {
+            headerText = key.replace("max_", "Maximum ").replace(/_/g, " ");
+          } else {
+            // Default formatting
+            headerText = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
+          }
+          
+          th.textContent = headerText;
+          headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Create body
+        const tbody = document.createElement("tbody");
+
+        data.forEach((item) => {
+          const row = document.createElement("tr");
+
+          allKeys.forEach((key) => {
+            const td = document.createElement("td");
+            let value = item[key];
+
+            // Format values for aggregation results
+            if (value === null || value === undefined) {
+              td.textContent = "N/A";
+              td.style.color = "#999";
+              td.style.fontStyle = "italic";
+            } else if (typeof value === "object") {
+              td.textContent = JSON.stringify(value);
+              td.classList.add("object-cell");
+            } else if (typeof value === "boolean") {
+              td.textContent = value.toString();
+              td.classList.add("boolean-cell");
+              if (value) {
+                td.style.color = "#4CAF50";
+              } else {
+                td.style.color = "#f44336";
+              }
+            } else if (typeof value === "number") {
+              // Format numbers appropriately for aggregation
+              if (Number.isInteger(value)) {
+                td.textContent = value.toLocaleString();
+              } else {
+                // For averages and other decimal values
+                td.textContent = parseFloat(value).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+              }
+              td.classList.add("numeric-cell");
+            } else {
+              td.textContent = value;
+              // If it looks like a number, format as numeric
+              if (!isNaN(parseFloat(value)) && !isNaN(value - 0)) {
+                td.classList.add("numeric-cell");
+                td.textContent = parseFloat(value).toLocaleString(undefined, {
+                  minimumFractionDigits: isNaN(parseInt(value)) ? 2 : 0,
+                  maximumFractionDigits: isNaN(parseInt(value)) ? 2 : 0,
+                });
+              }
+            }
+
+            row.appendChild(td);
+          });
+
+          tbody.appendChild(row);
+        });
+
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+      }
+
+      // Initialize with one filter row
+      window.addEventListener("DOMContentLoaded", () => {
+        loadFields();
+
+        // Load saved configurations list if it exists
+        setTimeout(() => {
+          loadSavedConfigsList();
+        }, 1000); // Slight delay to ensure DOM is ready
+
+        // Add keyboard shortcuts
+        document.addEventListener("keydown", (e) => {
+          if (e.ctrlKey && e.key === "Enter") {
+            e.preventDefault();
+            run();
+          }
+          if (e.ctrlKey && e.key === "n") {
+            e.preventDefault();
+            addRow();
+          }
+        });
+
+        // Add tooltip instructions
+        showNotification(
+          "💡 Tip: Press Ctrl+Enter to execute query, Ctrl+N to add filter",
+          "info"
+        );
+      });
+
+      // Also load fields when page loads
+      loadFields();
+    </script>
+  </body>
+</html>
