@@ -17,7 +17,7 @@ jobs:
           - 27017:27017
 
     env:
-      MONGO_URI=mongodb+srv://root:root@cluster.gkjhaft.mongodb.net
+      MONGODB_URI=mongodb+srv://root:root@cluster.gkjhaft.mongodb.net
 
     steps:
 
