@@ -1,0 +1,48 @@
+name: Dev CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+
+    env:
+      MONGO_URI: mongodb://localhost:27017/testdb
+
+    steps:
+
+      # Step 1: Download Code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Node
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # Step 3: Install Dependencies
+      - name: Install Packages
+        run: npm install
+
+      # Step 4: Run Tests
+      - name: Run Tests
+        run: npm test
+
+      # Step 5: Build Project
+      - name: Build
+        run: npm run build || echo "No build step"
+
+      # Step 6: Deploy to Render
+      - name: Deploy to Render
+        run: curl -X POST ${{ secrets.RENDER_DEV_HOOK }}
